@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config(); 
+import { OAuth2Client } from 'google-auth-library';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -116,6 +117,45 @@ app.post('/api/auth/login', async (req, res) => {
     
     res.json({ token, user: { name: user.name, email: user.email } });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+// GOOGLE LOGIN ROUTE
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { token } = req.body;
+    const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+    // 1. Verify the "Golden Ticket" with Google
+    const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const { name, email, picture } = ticket.getPayload();
+
+    // 2. Check if user exists in our DB
+    let user = await User.findOne({ email });
+
+    if (!user) {
+        // 3. If new user, create them (random password since they use Google)
+        const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+        user = new User({ name, email, password: hashedPassword });
+        await user.save();
+
+        // Create settings for new user
+        await new Settings({ user: user._id }).save();
+    }
+
+    // 4. Generate OUR App Token
+    const appToken = jwt.sign({ _id: user._id, name: user.name }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ token: appToken, user: { name: user.name, email: user.email } });
+
+  } catch (err) {
+    console.error("Google Auth Error:", err);
+    res.status(400).json({ error: "Google Login Failed" });
+  }
 });
 
 // 2. SETTINGS ROUTES (Protected)

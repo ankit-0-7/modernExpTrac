@@ -1,2 +1,4 @@
 node_modules
 .envserver/.env
+server/.env
+server/.env
