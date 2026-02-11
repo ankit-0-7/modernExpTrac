@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config(); 
 import { OAuth2Client } from 'google-auth-library';
 import express from 'express';
+import axios from 'axios'; // NEW: To talk to Python
 import mongoose from 'mongoose';
 import cors from 'cors';
 import multer from 'multer';
@@ -251,18 +252,85 @@ app.post('/api/scan', auth, upload.single('receipt'), async (req, res) => {
     res.json(newExpense);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
+// 5. PREDICTION ROUTE (Talks to Python)
 
-// 4. AI REPORT ROUTE (Protected)
+app.get('/api/predict', auth, async (req, res) => {
+  try {
+    // 1. We ask the Python Service for the forecast
+    // Note: We send the User ID so Python knows whose data to fetch
+    const pythonResponse = await axios.get(`http://127.0.0.1:5001/predict/${req.user._id}`);
+    
+    // 2. We send the Python answer back to our Frontend
+    res.json(pythonResponse.data);
+  } catch (error) {
+    console.error("Prediction Error:", error.message);
+    if (error.response && error.response.status === 400) {
+        return res.status(400).json({ error: "Not enough data. Add expenses for at least 5 different days." });
+    }
+    res.status(500).json({ error: "Prediction Service is unavailable." });
+  }
+});
+
+// 4. SMART AI REPORT ROUTE (Now with Future Prediction!)
 app.post('/api/analyze-spending', auth, async (req, res) => {
   try {
+    // 1. Get Past Data (MongoDB)
     const expenses = await Expense.find({ user: req.user._id });
     const settings = await Settings.findOne({ user: req.user._id });
     const mBudget = settings ? settings.monthlyBudget : 10000;
-    const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
-    const summary = expenses.slice(0, 40).map(e => `- ${e.title}: ₹${e.amount} (${e.category})`).join('\n');
     
+    // Calculate totals
+    const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
+    
+    // Create a text summary of last 30 transactions for the AI
+    const summary = expenses.slice(0, 30).map(e => `- ${e.title}: ₹${e.amount} (${e.category})`).join('\n');
+
+    // 2. Get Future Data (Ask Python Service)
+    let predictionText = "Prediction data unavailable (not enough history).";
+    let predictedAmount = 0;
+    
+    try {
+        // We ask Python: "What is the forecast for this user?"
+        // Note: We use 127.0.0.1 to talk to the local Python server
+        const predResponse = await axios.get(`http://127.0.0.1:5001/predict/${req.user._id}`);
+        const forecast = predResponse.data;
+        predictedAmount = forecast.total_predicted_spend;
+        
+        predictionText = `
+        - Predicted Total Spend Next 30 Days: ₹${predictedAmount}
+        - Trend Analysis: The model predicts spending will ${predictedAmount > totalSpent ? 'INCREASE' : 'DECREASE'} compared to previous history.
+        `;
+    } catch (err) {
+        console.log("AI could not fetch prediction (User might need more data).");
+    }
+
+    // 3. The Super-Prompt (Feeding Past + Future to Llama 3)
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-    const prompt = `Act as a strict Indian financial advisor. Budget: ₹${mBudget}. Spent: ₹${totalSpent}. Transactions:\n${summary}\nProvide a markdown report: 1. Health Status (Emoji). 2. Breakdown. 3. Advice. 4. Reality Check.`;
+    
+    const prompt = `
+    Act as a ruthlessly efficient Indian financial advisor (CA style).
+    
+    **FINANCIAL CONTEXT:**
+    - Monthly Budget: ₹${mBudget}
+    - Total Past Spending: ₹${totalSpent}
+    - **AI FORECAST (Next 30 Days):** ₹${predictedAmount}
+    
+    **DETAILS:**
+    ${predictionText}
+    
+    **RECENT TRANSACTIONS:**
+    ${summary}
+
+    **YOUR TASK:**
+    Analyze the gap between the budget and the PREDICTED future spending.
+    
+    **OUTPUT FORMAT (Markdown):**
+    1. **🚨 Risk Status:** (Safe / Warning / Critical) - Use an emoji.
+       - *Logic: If Forecast > Budget, set status to Critical.*
+    2. **🔮 Future Outlook:** Explain the prediction. "Based on your habits, you are on track to spend ₹${predictedAmount}..."
+    3. **💡 Action Plan:** 3 specific ways to cut costs based on their actual categories (e.g., "Cut down on Swiggy").
+    4. **🔥 The Roast:** One short, funny, slightly mean sentence about their spending habits.
+    `;
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
@@ -270,7 +338,11 @@ app.post('/api/analyze-spending', auth, async (req, res) => {
     });
 
     res.json({ report: chatCompletion.choices[0]?.message?.content });
-  } catch (error) { res.status(500).json({ error: "AI Failed" }); }
+
+  } catch (error) { 
+    console.error("AI Error:", error);
+    res.status(500).json({ error: "AI Failed to generate report" }); 
+  }
 });
 
 const PORT = process.env.PORT || 5000;

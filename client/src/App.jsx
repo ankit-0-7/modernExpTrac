@@ -6,9 +6,11 @@ import {
   Edit3, CreditCard, Calendar, PieChart as PieIcon, Save, Download, AlertTriangle, User, LogOut
 } from 'lucide-react';
 import { 
-  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, PieChart, Pie, ReferenceLine, BarChart 
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, PieChart, Pie, ReferenceLine, BarChart, 
+  AreaChart, Area // <--- ADDED THESE TWO
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import ReactMarkdown from 'react-markdown'; 
 import LandingPage from './LandingPage';
 import logo from "./ExpenseLogo.png"; // Ensure this image is in client/src/
@@ -175,6 +177,7 @@ function DashboardComponent({ onLogout }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expenses, setExpenses] = useState([]);
+  const [forecast, setForecast] = useState([]); // Store future data
   
   // Settings State
   const [monthlyBudget, setMonthlyBudget] = useState(10000);
@@ -211,6 +214,16 @@ function DashboardComponent({ onLogout }) {
         setDailyBudget(setRes.data.dailyBudget || 500);
         if(setRes.data.categories?.length > 0) setCategories(setRes.data.categories);
       }
+
+      // --- NEW: Try to get forecast ---
+      try {
+        const predRes = await axios.get(`${API_BASE_URL}/api/predict`, authHeader);
+        setForecast(predRes.data.forecast);
+      } catch (err) {
+        console.log("Prediction not available yet (need more data)");
+      }
+      // --------------------------------
+
     } catch (err) { console.error(err); }
   };
 
@@ -592,9 +605,69 @@ function DashboardComponent({ onLogout }) {
                       </div>
                    </Card>
                 </div>
+                {/* PREDICTION CHART */}
+                <Card className="col-span-1 md:col-span-12 mb-6 border border-emerald-500/30 bg-emerald-500/5">
+                    <div className="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
+                                🔮 AI Future Forecast
+                            </h3>
+                            <p className="text-xs text-gray-400">Predicted spending for next 30 days (Prophet Model)</p>
+                        </div>
+                        {forecast.length === 0 && (
+                            <span className="text-xs text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded">
+                                Need data from 5+ days
+                            </span>
+                        )}
+                    </div>
+                    
+                    {forecast.length > 0 ? (
+                        <div className="h-[250px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={forecast}>
+                                    <defs>
+                                        <linearGradient id="colorPred" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                    <XAxis 
+                                        dataKey="date" 
+                                        tick={{ fill: '#6b7280', fontSize: 10 }} 
+                                        tickFormatter={(str) => {
+                                            const date = new Date(str);
+                                            return `${date.getDate()}/${date.getMonth()+1}`;
+                                        }}
+                                    />
+                                    <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
+                                    <Tooltip 
+                                        contentStyle={{ backgroundColor: '#1c1c1e', border: '1px solid #333' }}
+                                        itemStyle={{ color: '#10b981' }}
+                                        labelFormatter={(label) => `Date: ${label}`}
+                                        formatter={(value) => [`₹${value}`, "Predicted Spend"]}
+                                    />
+                                    <Area 
+                                        type="monotone" 
+                                        dataKey="predicted_amount" 
+                                        stroke="#10b981" 
+                                        fillOpacity={1} 
+                                        fill="url(#colorPred)" 
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="h-[150px] flex flex-col items-center justify-center text-gray-500 text-sm">
+                            <p>Not enough history to predict the future.</p>
+                            <p className="text-xs mt-1">Try adding expenses for different dates!</p>
+                        </div>
+                    )}
+                </Card>
 
                 {/* Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
                    <Card className="lg:col-span-2 h-[400px]">
                       <h3 className="text-sm font-semibold mb-4">Expense Trend</h3>
                       <ResponsiveContainer width="100%" height="100%">
