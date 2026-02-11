@@ -3,11 +3,11 @@ import axios from 'axios';
 import { 
   LayoutDashboard, PlusCircle, BarChart3, FileText, Upload, Settings, 
   Bell, ChevronRight, Trash2, Loader2, Camera, Menu, X, Wallet, IndianRupee, 
-  Edit3, CreditCard, Calendar, PieChart as PieIcon, Save, Download, AlertTriangle, User, LogOut
+  Edit3, CreditCard, Calendar, PieChart as PieIcon, Save, Download, AlertTriangle, User, LogOut, CheckCircle, UploadCloud
 } from 'lucide-react';
 import { 
   ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, PieChart, Pie, ReferenceLine, BarChart, 
-  AreaChart, Area // <--- ADDED THESE TWO
+  AreaChart, Area 
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -29,57 +29,66 @@ const Card = ({ children, className = "" }) => (
   </motion.div>
 );
 
-const Sidebar = ({ activeTab, setActiveTab, onUploadClick, isOpen, toggleSidebar, onLogout }) => (
-  <>
-    {/* Mobile Overlay */}
-    {isOpen && (
-      <div 
-        className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
-        onClick={toggleSidebar}
-      />
-    )}
+const Sidebar = ({ activeTab, setActiveTab, onUploadClick, isOpen, toggleSidebar, onLogout }) => {
+  // Get User Name and Initial
+  const userName = localStorage.getItem('userName') || 'User';
+  const userInitial = userName.charAt(0).toUpperCase();
 
-    {/* Sidebar Content */}
-    <div className={`fixed left-0 top-0 h-screen w-64 bg-[#18181b] border-r border-white/5 z-50 transition-transform duration-300 ease-in-out ${
-      isOpen ? 'translate-x-0' : '-translate-x-full'
-    } md:translate-x-0 flex flex-col p-6 font-sans`}>
-      
-      <div className="flex items-center justify-between mb-10">
-        <div className="flex items-center gap-3">
-           <img src={logo} alt="Xpense" className="h-12 w-auto object-contain" />
+  return (
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={toggleSidebar}
+        />
+      )}
+  
+      {/* Sidebar Content */}
+      <div className={`fixed left-0 top-0 h-screen w-64 bg-[#18181b] border-r border-white/5 z-50 transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      } md:translate-x-0 flex flex-col p-6 font-sans`}>
+        
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex items-center gap-3">
+             <img src={logo} alt="Xpense" className="h-12 w-auto object-contain" />
+          </div>
+          <button onClick={toggleSidebar} className="md:hidden text-gray-400">
+            <X size={24} />
+          </button>
         </div>
-        <button onClick={toggleSidebar} className="md:hidden text-gray-400">
-          <X size={24} />
-        </button>
-      </div>
-
-      <nav className="flex-1 space-y-2">
-        <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); toggleSidebar(); }} />
-        <NavItem icon={<BarChart3 size={20} />} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); toggleSidebar(); }} />
-        <NavItem icon={<FileText size={20} />} label="AI Reports" active={activeTab === 'reports'} onClick={() => { setActiveTab('reports'); toggleSidebar(); }} />
-        <div onClick={() => { onUploadClick(); toggleSidebar(); }}>
-          <NavItem icon={<Upload size={20} />} label="Upload Receipt" />
+  
+        <nav className="flex-1 space-y-2">
+          <NavItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={activeTab === 'dashboard'} onClick={() => { setActiveTab('dashboard'); toggleSidebar(); }} />
+          <NavItem icon={<BarChart3 size={20} />} label="Analytics" active={activeTab === 'analytics'} onClick={() => { setActiveTab('analytics'); toggleSidebar(); }} />
+          <NavItem icon={<FileText size={20} />} label="AI Reports" active={activeTab === 'reports'} onClick={() => { setActiveTab('reports'); toggleSidebar(); }} />
+          <div onClick={() => { onUploadClick(); toggleSidebar(); }}>
+            <NavItem icon={<Upload size={20} />} label="Upload Receipt" />
+          </div>
+          <NavItem icon={<Settings size={20} />} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); toggleSidebar(); }} />
+        </nav>
+  
+        <div className="mt-auto">
+           <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-xl text-red-400 hover:bg-red-500/10 transition-all font-medium">
+              <LogOut size={20}/> Logout
+           </button>
+           
+           {/* UPDATED PROFILE SECTION */}
+           <div className="bg-[#27272a] rounded-xl p-4 border border-white/5">
+              <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-sm font-bold text-emerald-400">
+                    {userInitial}
+                 </div>
+                 <div>
+                    <h4 className="text-sm font-semibold text-white">{userName}</h4>
+                 </div>
+              </div>
+           </div>
         </div>
-        <NavItem icon={<Settings size={20} />} label="Settings" active={activeTab === 'settings'} onClick={() => { setActiveTab('settings'); toggleSidebar(); }} />
-      </nav>
-
-      <div className="mt-auto">
-         <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-xl text-red-400 hover:bg-red-500/10 transition-all font-medium">
-            <LogOut size={20}/> Logout
-         </button>
-         <div className="bg-[#27272a] rounded-xl p-4 border border-white/5">
-            <div className="flex items-center gap-3 mb-2">
-               <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs text-emerald-400">EU</div>
-               <div>
-                  <h4 className="text-sm font-semibold text-white">{localStorage.getItem('userName') || 'User'}</h4>
-                  <p className="text-xs text-gray-400">Pro Member</p>
-               </div>
-            </div>
-         </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 const NavItem = ({ icon, label, active, onClick }) => (
   <div onClick={onClick} className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all ${
@@ -178,6 +187,8 @@ function DashboardComponent({ onLogout }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expenses, setExpenses] = useState([]);
   const [forecast, setForecast] = useState([]); // Store future data
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('idle'); // NEW: 'idle', 'uploading', 'success', 'error'
   
   // Settings State
   const [monthlyBudget, setMonthlyBudget] = useState(10000);
@@ -295,15 +306,35 @@ function DashboardComponent({ onLogout }) {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setLoading(true);
+
+    // 1. Start the "Uploading" animation (Spinner)
+    setUploadStatus('uploading'); 
+
     const data = new FormData();
     data.append('receipt', file);
+
     try {
       await axios.post(`${API_BASE_URL}/api/scan`, data, authHeader);
-      alert("Scanned!");
-      fetchData();
-    } catch (err) { alert("Scan Failed"); }
-    finally { setLoading(false); e.target.value = null; }
+      
+      // 2. Show "Success" animation (Checkmark)
+      setUploadStatus('success'); 
+      
+      fetchData(); // Refresh your list
+
+      // 3. Reset button to normal after 3 seconds
+      setTimeout(() => setUploadStatus('idle'), 3000);
+
+    } catch (err) {
+      console.error("Scan error:", err);
+      
+      // 4. Show "Error" animation (Red X)
+      setUploadStatus('error');
+      
+      // Reset button to normal after 3 seconds
+      setTimeout(() => setUploadStatus('idle'), 3000);
+    } finally {
+      e.target.value = null; // Clear input so you can select the same file again
+    }
   };
 
   const generateAIReport = async () => {
@@ -414,11 +445,63 @@ function DashboardComponent({ onLogout }) {
              <h2 className="text-xl md:text-2xl font-bold capitalize text-gray-200">{activeTab}</h2>
           </div>
           <div className="flex gap-3">
-             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} disabled={loading} />
-             <button onClick={() => fileInputRef.current.click()} className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${loading ? 'bg-emerald-600' : 'bg-[#1c1c1e] hover:bg-zinc-800'}`}>
-                {loading ? <Loader2 className="animate-spin" size={18}/> : <Camera size={18}/>}
-                <span className="hidden md:inline text-sm font-medium">{loading ? "Scanning..." : "Scan Bill"}</span>
-             </button>
+             {/* === NEW ANIMATED UPLOAD BUTTON === */}
+             <div className="relative h-[42px] min-w-[140px]"> 
+                 <input 
+                     type="file" 
+                     ref={fileInputRef} // Keep the ref so we can trigger it if needed
+                     id="receipt-upload" 
+                     className="hidden" 
+                     accept="image/*,application/pdf" 
+                     onChange={handleFileUpload} 
+                     disabled={uploadStatus === 'uploading'} 
+                 />
+                 <label 
+                     htmlFor="receipt-upload" 
+                     className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition border h-full relative overflow-hidden
+                     ${uploadStatus === 'uploading' ? 'bg-[#27272a] border-emerald-500/50 cursor-not-allowed' : ''}
+                     ${uploadStatus === 'success' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-[#1c1c1e] hover:bg-[#32323a] border-white/10 text-white'}
+                     ${uploadStatus === 'error' ? 'bg-red-500/20 border-red-500 text-red-400' : ''}
+                     `}
+                 >
+                     <AnimatePresence mode="wait">
+                         {uploadStatus === 'idle' && (
+                             <motion.div 
+                                 key="idle" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                                 className="flex items-center gap-2"
+                             >
+                                 <UploadCloud size={18} /> <span className="hidden md:inline text-sm font-medium">Scan Bill</span>
+                             </motion.div>
+                         )}
+
+                         {uploadStatus === 'uploading' && (
+                             <motion.div 
+                                 key="uploading" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}
+                                 className="absolute inset-0 flex items-center justify-center"
+                             >
+                                 <Loader2 className="animate-spin text-emerald-500" size={22} />
+                             </motion.div>
+                         )}
+
+                         {uploadStatus === 'success' && (
+                             <motion.div 
+                                 key="success" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1.2 }} exit={{ opacity: 0, scale: 0.5 }}
+                                 className="absolute inset-0 flex items-center justify-center"
+                             >
+                                 <CheckCircle className="text-emerald-500 font-bold" size={24} />
+                             </motion.div>
+                         )}
+                          {uploadStatus === 'error' && (
+                             <motion.div 
+                                 key="error" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}
+                                 className="absolute inset-0 flex items-center justify-center"
+                             >
+                                 <X className="text-red-500" size={22} />
+                             </motion.div>
+                         )}
+                     </AnimatePresence>
+                 </label>
+             </div>
           </div>
         </header>
 
